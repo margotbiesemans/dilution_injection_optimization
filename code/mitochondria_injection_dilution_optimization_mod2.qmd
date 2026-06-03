@@ -1254,7 +1254,7 @@ residuals_by_id2[121]
          plot = p83, width = 12, height = 16, dpi = 600, units = "cm")
 ```
 
-```{r simulations}
+```{r simulations, eval=FALSE}
 plot <- posterior::as_draws_df(model_to_plot$draws(c("r_metabolite", "r_dilution", "r_injection", "r_dilution_injection_interaction", "r_log_sigma", "r_nu"))) %>%
   tidybayes::spread_draws(r_metabolite[metabolite_number], 
                           r_dilution[metabolite_number], 
@@ -1421,31 +1421,22 @@ title_psvr <- ggplot() +
   labs(title = "Proportion of Features Quantifiable at Two-Fold Difference") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 13))
 
-#p_perf_2x2 <-
-#  title_svr /
-#  (p_mean_pos + p_mean_neg) /
-#  title_psvr /
-#  (p_prop_pos + p_prop_neg) +
-#  plot_layout(
-#    heights = c(0.08, 1, 0.08, 1),
-#    guides = "collect")
-
-svr_row <- (p_mean_pos + p_mean_neg) +
-  plot_annotation(title = "Sensitivity-to-variability ratio")
-
-psvr_row <- (p_prop_pos + p_prop_neg) +
-  plot_annotation(title = "Proportion of Features Quantifiable at Two-Fold Difference")
-
-p_perf_2x2 <- svr_row / psvr_row + 
-  plot_layout(guides = "collect")
+p_perf_2x2 <-
+  title_svr /
+  (p_mean_pos + p_mean_neg) /
+  title_psvr /
+  (p_prop_pos + p_prop_neg) +
+  plot_layout(
+    heights = c(0.08, 1, 0.08, 1),
+    guides = "collect")
 
 p_perf_2x2
 
 ggsave(
   filename = here::here(figures_dir, "performance-metric-grid.png"),
   plot     = p_perf_2x2,
-  width    = 18,
-  height   = 18,
+  width    = 16,
+  height   = 16,
   dpi      = 600,
   units    = "cm")
 ```
