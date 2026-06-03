@@ -10,4 +10,4 @@ The aim of the project is to optimize dilution factor and injection volume for u
 The model described in the manuscript is **model 2**.
 
 The main rendered analysis report for this manuscript model can be opened here:
-[model 2 analysis report](code/mitochondria_injection_dilution_optimization_mod2.html)
+[model 2 analysis report](https://margotbiesemans.github.io/dilution_injection_optimization/code/mitochondria_injection_dilution_optimization_mod2.html)
