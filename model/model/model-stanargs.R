@@ -1,0 +1,9 @@
+list(iter_sampling = 1000, 
+     iter_warmup = 1000, 
+     seed = 123456,
+     chains = 4,
+     parallel_chains = 4,
+     threads_per_chain = 1,
+     adapt_delta = 0.98,
+     max_treedepth = 12,
+     refresh = 200)
