@@ -1,5 +1,5 @@
 ---
-title: "mitochondria_injection_dilution_optimization"
+title: "Bayesian Hierarchical Modeling for the Optimization of Dilution Factor and Injection Volume in Untargeted Metabolomics of Isolated Mitochondrial Samples"
 author:
   - name: "Margot Biesemans, Paweł Wiczling"
     affiliations:
