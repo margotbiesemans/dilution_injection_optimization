@@ -49,6 +49,6 @@ vignettes/*.pdf
 .RDataTmp
 
 # model outputs (generated)
-model/**/model-output/
-model/**/model_gq-output/
+model/**/*-output/*.csv
 *.RDS
+.Rproj.user

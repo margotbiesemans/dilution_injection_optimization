@@ -164,39 +164,66 @@ write_csv(data_long, file.path(data_derived_dir, "data-posneg.csv"), na = ".")
 
 ### Run model
 
-```{r run-model, eval =FALSE}
-#Execute to read files
-#cmdstan_model(here::here(file.path(model_dir, "model", "model.stan")), stanc_options = list("O1"), cpp_options = list(stan_threads = TRUE))
-model <- read_model(file.path(model_dir, "model"))
+```{r run-model}
+#Execute to compile model
+cmdstan_model(here::here(file.path(model_dir, "model2", "model2.stan")), 
+              stanc_options = list("O1"), 
+              cpp_options = list(stan_threads = TRUE),
+              force_recompile = TRUE)
+#Execute to read model
+model <- read_model(file.path(model_dir, "model2"))
 #Execute to build model
 model_res <- model %>% submit_model(.overwrite = TRUE)
 ```
 
 ### Generate quantities
 
-```{r generate-quantities, eval=FALSE}
+```{r generate-quantities}
 # Execute to get the templates to generate quantities from the model
-#model_gq  <- read_model(file.path(model_dir, "model")) %>%
+#model_gq  <- read_model(file.path(model_dir, "model2")) %>%
 # copy_model_as_stan_gq(.overwrite = TRUE)
-# Execcute to read the files
-model_gq  <- read_model(file.path(model_dir, "model_gq"))
+# Execute to read the files
+model_gq  <- read_model(file.path(model_dir, "model2_gq"))
 # Execute to generate quantities
 model_gq <- model_gq %>% submit_model(.overwrite = TRUE)
+
+decision_path_gq <- file.path(model_dir, "decision2_gq")
+decision_output_gq <- "decision_gq-output"
+decision_output_dir <- file.path(decision_path_gq, decision_output_gq)
+
+dir.create(decision_output_dir, recursive = TRUE, showWarnings = FALSE)
+
+#Quantities for decision making
+source(file.path(decision_path_gq, "decision2_gq-standata.R"))
+data_decision <- make_standata()
+
+main_model_output_files <- model_to_plot$output_files()
+
+decision_gq <- cmdstanr::cmdstan_model(
+  file.path(decision_path_gq, "decision2_gq.stan"))
+
+decision_to_plot_gq <- decision_gq$generate_quantities(
+  fitted_params = main_model_output_files,
+  data = data_decision,
+  seed = 123,
+  parallel_chains = min(4, length(main_model_output_files)),
+  output_basename = "output_gq",
+  output_dir = file.path(decision_path_gq, decision_output_gq))
 ```
 
 ### Read the model
 
-```{r read-model, eval = FALSE}
+```{r read-model}
 #Execute to read the model and generated quantities results
-  model_to_plot  <- read_model(here::here(model_dir, "model")) %>%
+  model_to_plot  <- read_model(here::here(model_dir, "model2")) %>%
     read_fit_model()
-  model_to_plot_gq <- read_model(here::here(model_dir, "model_gq")) %>%
+  model_to_plot_gq <- read_model(here::here(model_dir, "model2_gq")) %>%
     read_fit_model()
 ```
 
 ## Running and loading model in Tryton
 
-```{r tryton-paths}
+```{r tryton-paths, eval=FALSE}
 model <- read_model(file.path(model_dir, "model2"))
 model_path = model$absolute_model_path;
 model_output <- "model-output"
@@ -230,7 +257,7 @@ write_stan_json(init(), here(model_path, "init-7.json"), always_decimal = FALSE)
 write_stan_json(init(), here(model_path, "init-8.json"), always_decimal = FALSE)
 ```
 
-```{r read-tryton-files}
+```{r read-tryton-files, eval=FALSE}
 model_to_plot <- cmdstanr::as_cmdstan_fit(c(
                                   here(model_path, model_output, 'output_1.csv'),
                                   here(model_path, model_output, 'output_2.csv'),
@@ -243,7 +270,7 @@ model_to_plot <- cmdstanr::as_cmdstan_fit(c(
                                 ))
 ```
 
-```{r tryton-gq}
+```{r tryton-gq, eval=FALSE}
 #read_model(file.path(model_dir, "model")) %>%  copy_model_as_stan_gq()
 
 source(paste0(model_path_gq, "/model2_gq-fitted-params.R"))
@@ -270,7 +297,7 @@ model_gq  <- model_gq$generate_quantities(paths,
                                          output_dir = here(model_path_gq,model_output_gq))
 ```
 
-```{r tryton-gq-load-files}
+```{r tryton-gq-load-files, eval=FALSE}
 gc()
 model_to_plot_gq <- cmdstanr::read_cmdstan_csv(c(
                                   here(model_path_gq, model_output_gq, 'output_gq-1.csv'),
@@ -312,7 +339,7 @@ decision_gq  <- decision_gq$generate_quantities(paths,
                                          output_dir = here(decision_path_gq,decision_output_gq))
 ```
 
-```{r tryton-gq-load-files-decision}
+```{r tryton-gq-load-files-decision, eval = FALSE}
 decision_to_plot_gq <- cmdstanr::read_cmdstan_csv(c(
                                   here(decision_path_gq, decision_output_gq, 'output_gq-1.csv'),
                                   here(decision_path_gq, decision_output_gq, 'output_gq-2.csv'),
@@ -1038,7 +1065,7 @@ plots_by_id[121]
 ### Goodness of fit
 
 ```{r goodness-fit}
-temp <- posterior::as_draws_df(model_to_plot_gq$generated_quantities)
+temp <- posterior::as_draws_df(model_to_plot_gq$draws())
 
 Y_predicted <- apply(temp[, which(colnames(temp) %in% grep("^Ypred", names(temp), value = TRUE))], MARGIN = 2, FUN = quantile, probs = c(.05, .5, .95))
 
@@ -1354,14 +1381,14 @@ dilution_factor_sim = seq(0.25, 1, length.out = 10)
 injection_volume_sim = seq(2.5, 10, length.out = 10)
 posneg = c("positive", "negative")
 
-performance_simulation <- posterior::as_draws_df(
-  decision_to_plot_gq$generated_quantities) %>%
+performance_simulation <- decision_to_plot_gq$draws(format = "draws_df") %>%
   tidybayes::spread_draws(
-    SVR[i,j,c],pSVR[i,j,c]) %>%
-  ungroup() 
+    SVR[i, j, c], 
+    pSVR[i, j, c]) %>%
+  ungroup()
 
 design_summary <- performance_simulation %>%
-  group_by(i,j,c) %>%
+  group_by(i, j, c) %>%
   summarise(
     mean_metric = mean(SVR),
     proportion_metabolites = mean(pSVR),
@@ -1369,47 +1396,41 @@ design_summary <- performance_simulation %>%
 
 design_summary$dilution_factor_sim = dilution_factor_sim[design_summary$i]
 design_summary$injection_volume_sim = injection_volume_sim[design_summary$j]
-design_summary$ionization_mode = posneg[design_summary$c]
+design_summary$ionization_mode <- factor(
+  posneg[design_summary$c],
+  levels = c("positive", "negative"))
 
-p_mean_pos <- ggplot(
-  filter(design_summary, ionization_mode == "positive"),
+svr_breaks <- seq(
+  floor(min(design_summary$mean_metric, na.rm = TRUE)),
+  ceiling(max(design_summary$mean_metric, na.rm = TRUE)),
+  length.out = 11)
+
+psvr_breaks <- seq(
+  floor(min(design_summary$proportion_metabolites, na.rm = TRUE) * 10) / 10,
+  ceiling(max(design_summary$proportion_metabolites, na.rm = TRUE) * 10) / 10,
+  length.out = 11)
+
+p_mean <- ggplot(
+  design_summary,
   aes(x = dilution_factor_sim, y = injection_volume_sim, z = mean_metric)) +
-  geom_contour_filled(bins = 10) +
+  geom_contour_filled(breaks = svr_breaks) +
+  facet_wrap(~ ionization_mode) +
   labs(
     x = "Dilution factor",
     y = "Injection volume",
-    fill = "SVR")
+    fill = "SVR") +
+  theme(strip.text = element_text(face = "bold"))
 
-p_mean_neg <- ggplot(
-  filter(design_summary, ionization_mode == "negative"),
-  aes(x = dilution_factor_sim, y = injection_volume_sim, z = mean_metric)) +
-  geom_contour_filled(bins = 10) +
+p_prop <- ggplot(
+  design_summary,
+  aes(x = dilution_factor_sim, y = injection_volume_sim, z = proportion_metabolites)) +
+  geom_contour_filled(breaks = psvr_breaks) +
+  facet_wrap(~ ionization_mode) +
   labs(
     x = "Dilution factor",
     y = "Injection volume",
-    fill = "SVR")
-
-p_prop_pos <- ggplot(
-  filter(design_summary, ionization_mode == "positive"), 
-  aes(x = dilution_factor_sim, 
-      y = injection_volume_sim, 
-      z = proportion_metabolites)) +
-  geom_contour_filled(bins = 10) +
-  labs(
-    x = "Dilution factor",
-    y = "Injection volume",
-    fill = "pSVR")
- 
-p_prop_neg <- ggplot(
-  filter(design_summary, ionization_mode == "negative"), 
-  aes(x = dilution_factor_sim, 
-      y = injection_volume_sim, 
-      z = proportion_metabolites)) +
-  geom_contour_filled(bins = 10) +
-  labs(
-    x = "Dilution factor",
-    y = "Injection volume",
-    fill = "pSVR")
+    fill = "pSVR") +
+  theme(strip.text = element_text(face = "bold"))
 
 title_svr <- ggplot() +
   theme_void() +
@@ -1423,12 +1444,13 @@ title_psvr <- ggplot() +
 
 p_perf_2x2 <-
   title_svr /
-  (p_mean_pos + p_mean_neg) /
+  p_mean /
   title_psvr /
-  (p_prop_pos + p_prop_neg) +
+  p_prop +
   plot_layout(
     heights = c(0.08, 1, 0.08, 1),
-    guides = "collect")
+    guides = "collect") &
+  theme(legend.position = "right")
 
 p_perf_2x2
 
@@ -1456,11 +1478,10 @@ levels_new = c(
 "Dil = 0.5, Inj = 2.5",
 "Dil = 1, Inj = 2.5")
 
-performance_subset <- posterior::as_draws_df(
-  decision_to_plot_gq$generated_quantities) %>%
+performance_subset <- decision_to_plot_gq$draws(format = "draws_df") %>%
   tidybayes::spread_draws(
-    svrm[i,j,m]) %>%
-  ungroup() 
+    svrm[i, j, m]) %>%
+  ungroup()
 
 performance_subset <- performance_subset %>%
   mutate(ionization_mode = if_else(m <= 184, 
@@ -1601,4 +1622,8 @@ ggsave(
   dpi      = 600,
   units    = "cm"
 )
+```
+
+```{r session-info}
+sessionInfo()
 ```

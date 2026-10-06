@@ -166,8 +166,8 @@ write_csv(data_long, file.path(data_derived_dir, "data-posneg.csv"), na = ".")
 
 ```{r, eval =FALSE}
 #Execute to read files
-#cmdstan_model(here::here(file.path(model_dir, "model", "model.stan")), stanc_options = list("O1"), cpp_options = list(stan_threads = TRUE))
-model <- read_model(file.path(model_dir, "model"))
+cmdstan_model(here::here(file.path(model_dir, "model3", "model3.stan")), stanc_options = list("O1"), cpp_options = list(stan_threads = TRUE))
+model <- read_model(file.path(model_dir, "model3"))
 #Execute to build model
 model_res <- model %>% submit_model(.overwrite = TRUE)
 ```
@@ -176,10 +176,10 @@ model_res <- model %>% submit_model(.overwrite = TRUE)
 
 ```{r, eval=FALSE}
 # Execute to get the templates to generate quantities from the model
-#model_gq  <- read_model(file.path(model_dir, "model")) %>%
-# copy_model_as_stan_gq(.overwrite = TRUE)
-# Execcute to read the files
-model_gq  <- read_model(file.path(model_dir, "model_gq"))
+model_gq  <- read_model(file.path(model_dir, "model3")) %>%
+ copy_model_as_stan_gq(.overwrite = TRUE)
+# Execute to read the files
+model_gq  <- read_model(file.path(model_dir, "model3_gq"))
 # Execute to generate quantities
 model_gq <- model_gq %>% submit_model(.overwrite = TRUE)
 ```

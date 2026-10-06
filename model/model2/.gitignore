@@ -1,3 +1,6 @@
 # ignore model binary
 model-output/
 
+
+# ignore model binary
+model2

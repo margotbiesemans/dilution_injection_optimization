@@ -1,0 +1,14 @@
+{
+  "output_dir": "D:/dilution_injection_optimization/model/model2_gq/model2_gq-output",
+  "data_path": "../model2_gq-standata.json",
+  "model_md5": "ae3fdf89b1d3297410cbe3b197c2f5f7",
+  "data_md5": "e6824d8577fe0f824c25c3bed3bd47a6",
+  "standata_script_md5": "2ab3dd74d51faafa53e4a4aeaf21fb70",
+  "stanargs_md5": "a7ce5bba24c4c1c91db6a91609d391ae",
+  "stan_fitted_params_md5": "764aea331127f3e4264f4dd0d7d536ae",
+  "gq_parent_md5": ["c2f5fd72fd71fe84cbad44e3cc2c0241"],
+  "configuration": {
+    "cmdstan_version": "2.36.0",
+    "cmdstanr_version": "0.8.1"
+  }
+}
