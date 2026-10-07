@@ -53,8 +53,6 @@ library(GGally)
 library(mrgmisc)
 library(scales)
 
-#remotes::install_github("metrumresearchgroup/mrgmisc")
-#set_cmdstan_path("C:/Users/Margot/.cmdstan/cmdstan-2.36.0") #change path to your CmdStan location
 set.seed(10271998) #setting seed is not required but assures repeatable results
 ```
 
@@ -63,19 +61,33 @@ set.seed(10271998) #setting seed is not required but assures repeatable results
 ```{r set-paths}
 #data directory
   data_dir = here::here("data", "rawdata")
+  
   #derived data subfolder
     data_derived_dir <- here::here("data", "derived", "mod2") 
-    if(!file.exists(data_derived_dir)) dir.create(data_derived_dir, recursive = T)
+    if(!file.exists(data_derived_dir)) {
+      dir.create(data_derived_dir, recursive = T)}
+    
 #model directory
   model_dir <- here::here("model")  
-  if(!file.exists(model_dir)) dir.create(model_dir, recursive = T)
+  if(!file.exists(model_dir)) {
+    dir.create(model_dir, recursive = T)}
+  
+  #generated quantities subfolder
+  decision_path_gq <- file.path(model_dir, "model2_decision_gq")
+  decision_output_dir <- file.path(decision_path_gq, "decision_gq-output")
+  if(!file.exists(decision_output_dir)) {
+    dir.create(decision_output_dir, recursive = TRUE)}
+  
 #figures and tables directory
   #figures subfolder
     figures_dir <- here::here("deliv", "figures", "mod2")
-    if(!file.exists(figures_dir)) dir.create(figures_dir, recursive = T)
+    if(!file.exists(figures_dir)) {
+      dir.create(figures_dir, recursive = T)}
+    
   #tables subfolder
     tables_dir <- here::here("deliv", "tables", "mod2")
-    if(!file.exists(tables_dir)) dir.create(tables_dir, recursive = T)
+    if(!file.exists(tables_dir)) {
+      dir.create(tables_dir, recursive = T)}
 ```
 
 ## Load data
@@ -170,10 +182,16 @@ cmdstan_model(here::here(file.path(model_dir, "model2", "model2.stan")),
               stanc_options = list("O1"), 
               cpp_options = list(stan_threads = TRUE),
               force_recompile = TRUE)
+
 #Execute to read model
 model <- read_model(file.path(model_dir, "model2"))
+
 #Execute to build model
 model_res <- model %>% submit_model(.overwrite = TRUE)
+
+#Execute to read fitted model
+model_to_plot <- read_model(file.path(model_dir, "model2")) %>%
+  read_fit_model()
 ```
 
 ### Generate quantities
@@ -182,43 +200,30 @@ model_res <- model %>% submit_model(.overwrite = TRUE)
 # Execute to get the templates to generate quantities from the model
 #model_gq  <- read_model(file.path(model_dir, "model2")) %>%
 # copy_model_as_stan_gq(.overwrite = TRUE)
+
 # Execute to read the files
 model_gq  <- read_model(file.path(model_dir, "model2_gq"))
+
 # Execute to generate quantities
 model_gq <- model_gq %>% submit_model(.overwrite = TRUE)
 
-decision_path_gq <- file.path(model_dir, "decision2_gq")
-decision_output_gq <- "decision_gq-output"
-decision_output_dir <- file.path(decision_path_gq, decision_output_gq)
-
-dir.create(decision_output_dir, recursive = TRUE, showWarnings = FALSE)
-
 #Quantities for decision making
 source(file.path(decision_path_gq, "decision2_gq-standata.R"))
-data_decision <- make_standata()
-
-main_model_output_files <- model_to_plot$output_files()
 
 decision_gq <- cmdstanr::cmdstan_model(
   file.path(decision_path_gq, "decision2_gq.stan"))
 
 decision_to_plot_gq <- decision_gq$generate_quantities(
-  fitted_params = main_model_output_files,
-  data = data_decision,
+  fitted_params = model_to_plot$output_files(),
+  data = make_standata(),
   seed = 123,
-  parallel_chains = min(4, length(main_model_output_files)),
+  parallel_chains = 4,
   output_basename = "output_gq",
-  output_dir = file.path(decision_path_gq, decision_output_gq))
-```
+  output_dir = decision_output_dir)
 
-### Read the model
-
-```{r read-model}
-#Execute to read the model and generated quantities results
-  model_to_plot  <- read_model(here::here(model_dir, "model2")) %>%
-    read_fit_model()
-  model_to_plot_gq <- read_model(here::here(model_dir, "model2_gq")) %>%
-    read_fit_model()
+#Execute to read generated quantities results
+model_to_plot_gq <- read_model(file.path(model_dir, "model2_gq")) %>%
+  read_fit_model()
 ```
 
 ## Running and loading model in Tryton
@@ -1322,12 +1327,13 @@ ggsave(filename = here::here(figures_dir, "simulations.png"), plot = plot, width
 ```{r simulations-slope, eval = FALSE}
 #Generate simulations matrix
   gc() 
-  simulation_data <- posterior::as_draws_df(model_to_plot$draws(c("r_metabolite", 
-                                            "r_dilution",  
-                                            "r_injection",  
-                                            "r_dilution_injection_interaction",  
-                                            "r_log_sigma",  
-                                            "r_nu"))) %>% 
+  simulation_data <- posterior::as_draws_df(model_to_plot$draws(c(
+      "r_metabolite", 
+      "r_dilution",  
+      "r_injection",  
+      "r_dilution_injection_interaction",  
+      "r_log_sigma",  
+      "r_nu"))) %>% 
     tidybayes::spread_draws(r_metabolite[metabolite_number],  
                             r_dilution[metabolite_number],  
                             r_injection[metabolite_number], 

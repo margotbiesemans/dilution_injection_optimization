@@ -52,3 +52,5 @@ vignettes/*.pdf
 model/**/*-output/*.csv
 *.RDS
 .Rproj.user
+.Rproj.user
+.Rproj.user

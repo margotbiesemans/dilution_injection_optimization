@@ -1,0 +1,3 @@
+?? git-status.txt
+?? git-tracked-files.txt
+?? working-tree.txt
