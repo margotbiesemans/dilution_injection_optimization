@@ -1,0 +1,13 @@
+{
+  "output_dir": "D:/dilution_injection_optimization/model/model1/model1-output",
+  "data_path": "../model1-standata.json",
+  "model_md5": "f952700af61949b9c0a8e8af08606008",
+  "data_md5": "4de79464ab552cebeb46f63393dd529b",
+  "standata_script_md5": "0c72455a8963dfa58ec584d352f68b9b",
+  "stanargs_md5": "ae0db4fdd3f07a43612e442eac9b3338",
+  "init_script_md5": "055670d664b46db0608cb04a413cbbd5",
+  "configuration": {
+    "cmdstan_version": "2.36.0",
+    "cmdstanr_version": "0.8.1"
+  }
+}

@@ -1074,7 +1074,7 @@ plots_by_id[121]
 ### Goodness of fit
 
 ```{r goodness-fit}
-temp <- posterior::as_draws_df(model_to_plot_gq$generated_quantities)
+temp <- posterior::as_draws_df(model_to_plot_gq$draws())
 
 Y_predicted <- apply(temp[, which(colnames(temp) %in% grep("^Ypred", names(temp), value = TRUE))], MARGIN = 2, FUN = quantile, probs = c(.05, .5, .95))
 

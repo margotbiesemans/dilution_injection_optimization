@@ -1074,7 +1074,7 @@ plots_by_id[121]
 ### Goodness of fit
 
 ```{r goodness-fit}
-temp <- posterior::as_draws_df(model_to_plot_gq$generated_quantities)
+temp <- posterior::as_draws_df(model_to_plot_gq$draws())
 
 Y_predicted <- apply(temp[, which(colnames(temp) %in% grep("^Ypred", names(temp), value = TRUE))], MARGIN = 2, FUN = quantile, probs = c(.05, .5, .95))
 
@@ -1371,9 +1371,9 @@ simulation_data <- simulation_data %>%
 
 gc()
 
-write.csv(
-  simulation_data,
-  file = here::here(data_derived_dir, "simulation_data.csv"))
+#write.csv(
+  #simulation_data,
+  #file = here::here(data_derived_dir, "simulation_data.csv"))
 
 # Evaluation of slopes
 p91 <- simulation_data %>%
