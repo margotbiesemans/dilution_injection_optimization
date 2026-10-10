@@ -1429,14 +1429,14 @@ dilution_factor_sim = seq(0.25, 1, length.out = 10)
 injection_volume_sim = seq(2.5, 10, length.out = 10)
 posneg = c("positive", "negative")
 
-performance_simulation <- posterior::as_draws_df(
-  decision_to_plot_gq$generated_quantities) %>%
+performance_simulation <- decision_to_plot_gq$draws(format = "draws_df") %>%
   tidybayes::spread_draws(
-    SVR[i,j,c],pSVR[i,j,c]) %>%
-  ungroup() 
+    SVR[i, j, c], 
+    pSVR[i, j, c]) %>%
+  ungroup()
 
 design_summary <- performance_simulation %>%
-  group_by(i,j,c) %>%
+  group_by(i, j, c) %>%
   summarise(
     mean_metric = mean(SVR),
     proportion_metabolites = mean(pSVR),
@@ -1444,42 +1444,69 @@ design_summary <- performance_simulation %>%
 
 design_summary$dilution_factor_sim = dilution_factor_sim[design_summary$i]
 design_summary$injection_volume_sim = injection_volume_sim[design_summary$j]
-design_summary$ionization_mode = posneg[design_summary$c]
+design_summary$ionization_mode <- factor(
+  posneg[design_summary$c],
+  levels = c("positive", "negative"))
+
+svr_breaks <- seq(
+  floor(min(design_summary$mean_metric, na.rm = TRUE)),
+  ceiling(max(design_summary$mean_metric, na.rm = TRUE)),
+  length.out = 11)
+
+psvr_breaks <- seq(
+  floor(min(design_summary$proportion_metabolites, na.rm = TRUE) * 10) / 10,
+  ceiling(max(design_summary$proportion_metabolites, na.rm = TRUE) * 10) / 10,
+  length.out = 11)
 
 p_mean <- ggplot(
   design_summary,
   aes(x = dilution_factor_sim, y = injection_volume_sim, z = mean_metric)) +
-  geom_contour_filled(bins = 10) +
+  geom_contour_filled(breaks = svr_breaks) +
   facet_wrap(~ ionization_mode) +
-  #scale_fill_viridis_c(name = "Mean\nmetric") +
   labs(
     x = "Dilution factor",
     y = "Injection volume",
-    fill = "SVR",
-    title = "Sensitivity-to-variability ratio")
+    fill = "SVR") +
+  theme(strip.text = element_text(face = "bold"))
 
 p_prop <- ggplot(
   design_summary,
-  aes(x = dilution_factor_sim, 
-      y = injection_volume_sim, 
-      z = proportion_metabolites)) +
-  geom_contour_filled(bins = 10) +
+  aes(x = dilution_factor_sim, y = injection_volume_sim, z = proportion_metabolites)) +
+  geom_contour_filled(breaks = psvr_breaks) +
   facet_wrap(~ ionization_mode) +
   labs(
     x = "Dilution factor",
     y = "Injection volume",
-    fill = "pSVR",
-    title = "Proportion of Features Quantifiable at Two-Fold Difference")
+    fill = "pSVR") +
+  theme(strip.text = element_text(face = "bold"))
 
-p_perf_2x2 <- p_mean / p_prop + plot_layout(guides = "collect")
+title_svr <- ggplot() +
+  theme_void() +
+  labs(title = "Sensitivity-to-variability ratio") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 13))
+
+title_psvr <- ggplot() +
+  theme_void() +
+  labs(title = "Proportion of Features Quantifiable at Two-Fold Difference") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 13))
+
+p_perf_2x2 <-
+  title_svr /
+  p_mean /
+  title_psvr /
+  p_prop +
+  plot_layout(
+    heights = c(0.08, 1, 0.08, 1),
+    guides = "collect") &
+  theme(legend.position = "right")
 
 p_perf_2x2
 
 ggsave(
   filename = here::here(figures_dir, "performance-metric-grid.png"),
   plot     = p_perf_2x2,
-  width    = 14,
-  height   = 18,
+  width    = 16,
+  height   = 16,
   dpi      = 600,
   units    = "cm")
 ```
@@ -1491,28 +1518,23 @@ target_injections <- c(2.5, 5, 10)
 levels_new = c(
   "Dil = 0.25, Inj = 10",
   "Dil = 0.5, Inj = 10",
-"Dil = 1, Inj = 10",
-"Dil = 0.25, Inj = 5",
-"Dil = 0.5, Inj = 5",
-"Dil = 1, Inj = 5",  
-"Dil = 0.25, Inj = 2.5",
-"Dil = 0.5, Inj = 2.5",
-"Dil = 1, Inj = 2.5")
+  "Dil = 1, Inj = 10",
+  "Dil = 0.25, Inj = 5",
+  "Dil = 0.5, Inj = 5",
+  "Dil = 1, Inj = 5",  
+  "Dil = 0.25, Inj = 2.5",
+  "Dil = 0.5, Inj = 2.5",
+  "Dil = 1, Inj = 2.5")
 
-#
-
-performance_subset <- posterior::as_draws_df(
-  decision_to_plot_gq$generated_quantities) %>%
+performance_subset <- decision_to_plot_gq$draws(format = "draws_df") %>%
   tidybayes::spread_draws(
-    svrm[i,j,m]) %>%
-  ungroup() 
-
+    svrm[i, j, m]) %>%
+  ungroup()
 
 performance_subset <- performance_subset %>%
   mutate(ionization_mode = if_else(m <= 184, 
                                    "positive", "negative"))
 
-#
 performance_pos <- performance_subset %>%
   dplyr::filter(ionization_mode == "positive")
 
@@ -1523,11 +1545,11 @@ performance_pos_hist = performance_pos %>%
 performance_pos_hist$dilution_factor = target_dilutions[performance_pos_hist$i]
 performance_pos_hist$injection_volume = target_injections[performance_pos_hist$j]
 
- performance_pos_hist <- performance_pos_hist %>%
+performance_pos_hist <- performance_pos_hist %>%
   mutate(
     design_label = glue("Dil = {dilution_factor}, Inj = {injection_volume}"),
     design_label = factor(design_label, levels = levels_new))
-#
+
 counts_pos <- performance_pos %>%
   group_by(i,j,.draw) %>%
   summarise(
@@ -1536,24 +1558,23 @@ counts_pos <- performance_pos %>%
     prop_above = n_above/n_total,
     .groups = "drop") %>% 
   group_by(i,j) %>%
-   summarise(
+  summarise(
     n_total = mean(n_total),
     n_above = mean(n_above),
     prop_above = mean(prop_above),
     .groups = "drop") %>%
   mutate(
     label = paste0(round(n_above,0),
-      " (", percent(prop_above, accuracy = 1), ")"))
-#
+                   " (", percent(prop_above, accuracy = 1), ")"))
 
 counts_pos$dilution_factor = target_dilutions[counts_pos$i]
 counts_pos$injection_volume = target_injections[counts_pos$j]
 
- counts_pos <- counts_pos %>%
+counts_pos <- counts_pos %>%
   mutate(
     design_label = glue("Dil = {dilution_factor}, Inj = {injection_volume}"),
     design_label = factor(design_label, levels = levels_new))
-  
+
 performance_histogram_pos <- ggplot(
   performance_pos_hist,
   aes(x = mean_performance_metric)) +
@@ -1570,9 +1591,9 @@ performance_histogram_pos <- ggplot(
     x = "Sensitivity-to-variability ratio",
     y = "Number of metabolites",
     title = "Positive ionization mode:\nperformance metric across metabolites")
-#
+
 performance_histogram_pos
-#
+
 ggsave(
   filename = here::here(figures_dir, "performance-histograms-positive.png"),
   plot     = performance_histogram_pos,
@@ -1581,8 +1602,6 @@ ggsave(
   dpi      = 600,
   units    = "cm"
 )
-#
-#
 
 performance_neg <- performance_subset %>%
   filter(ionization_mode == "negative")
@@ -1594,12 +1613,11 @@ performance_neg_hist = performance_neg %>%
 performance_neg_hist$dilution_factor = target_dilutions[performance_neg_hist$i]
 performance_neg_hist$injection_volume = target_injections[performance_neg_hist$j]
 
- performance_neg_hist <- performance_neg_hist  %>%
+performance_neg_hist <- performance_neg_hist  %>%
   mutate(
     design_label = glue("Dil = {dilution_factor}, Inj = {injection_volume}"),
     design_label = factor(design_label, levels = levels_new))
- 
-#
+
 counts_neg <- performance_neg %>%
   group_by(i,j,.draw) %>%
   summarise(
@@ -1608,24 +1626,23 @@ counts_neg <- performance_neg %>%
     prop_above = n_above/n_total,
     .groups = "drop") %>% 
   group_by(i,j) %>%
-   summarise(
+  summarise(
     n_total = mean(n_total),
     n_above = mean(n_above),
     prop_above = mean(prop_above),
     .groups = "drop") %>%
   mutate(
     label = paste0(round(n_above,0),
-      " (", percent(prop_above, accuracy = 1), ")"))
-#
+                   " (", percent(prop_above, accuracy = 1), ")"))
 
 counts_neg$dilution_factor = target_dilutions[counts_neg$i]
 counts_neg$injection_volume = target_injections[counts_neg$j]
 
- counts_neg <- counts_neg  %>%
+counts_neg <- counts_neg  %>%
   mutate(
     design_label = glue("Dil = {dilution_factor}, Inj = {injection_volume}"),
     design_label = factor(design_label, levels = levels_new))
- 
+
 performance_histogram_neg <- ggplot(
   performance_neg_hist,
   aes(x = mean_performance_metric)) +
@@ -1642,9 +1659,9 @@ performance_histogram_neg <- ggplot(
     x = "Sensitivity-to-variability ratio",
     y = "Number of metabolites",
     title = "Negative ionization mode:\nperformance metric across metabolites")
-#
+
 performance_histogram_neg
-#
+
 ggsave(
   filename = here::here(figures_dir, "performance-histograms-negative.png"),
   plot     = performance_histogram_neg,
